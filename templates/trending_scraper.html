@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed eBay Trending Scraper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .fix-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .main-content {
+            padding: 40px;
+        }
+        
+        .config-panel {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        }
+        
+        .progress-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .status-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .status-card h4 {
+            color: #28a745;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .status-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .results-section {
+            margin-top: 30px;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .result-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .trending-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .result-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 48px;
+        }
+        
+        .result-price {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 12px;
+        }
+        
+        .trending-metrics {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: #666;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        
+        .metric.highlight {
+            background: #e8f5e8;
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .result-details {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .alert {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .download-section {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stats-summary {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .stat-item {
+            padding: 10px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .fix-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #1565c0;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Fixed eBay Trending Scraper</h1>
+            <p>Updated with modern selectors and improved data extraction</p>
+            <div class="fix-badge">✅ Issues Fixed</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="config-panel">
+                <h2>🎯 Scraping Configuration</h2>
+                <p style="margin-bottom: 25px; color: #666;">Fixed scraper with comprehensive extraction methods!</p>
+                
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="category">📂 Category</label>
+                        <select id="category">
+                            <option value="0">🌍 All Categories (Most Popular)</option>
+                            <option value="267">📚 Books, Movies & Music</option>
+                            <option value="11450">👗 Clothing, Shoes & Accessories</option>
+                            <option value="58058">🏭 Business & Industrial</option>
+                            <option value="26395">💄 Health & Beauty</option>
+                            <option value="1249">🎮 Video Games & Consoles</option>
+                            <option value="293">📱 Consumer Electronics</option>
+                            <option value="550">🎨 Art & Collectibles</option>
+                            <option value="2984">👶 Baby Essentials</option>
+                            <option value="888">⚽ Sports & Outdoors</option>
+                            <option value="281">💎 Jewelry & Watches</option>
+                            <option value="15032">🚗 Cars & Trucks</option>
+                            <option value="11700">🏠 Home & Garden</option>
+                            <option value="619">🎵 Musical Instruments</option>
+                            <option value="1281">🐕 Pet Supplies</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sort-type">🔥 Trending Type</label>
+                        <select id="sort-type">
+                            <option value="most_watched">👀 Most Watched (Hottest Items)</option>
+                            <option value="best_selling">📈 Best Selling</option>
+                            <option value="ending_soon">⏰ Ending Soon (High Activity)</option>
+                            <option value="highest_price">💰 Highest Value</option>
+                            <option value="lowest_price">💸 Best Deals</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-pages">📄 Pages to Scrape</label>
+                        <select id="max-pages">
+                            <option value="2">2 Pages (~100 items) - Fast</option>
+                            <option value="3" selected>3 Pages (~150 items) - Balanced</option>
+                            <option value="5">5 Pages (~250 items) - More Data</option>
+                            <option value="8">8 Pages (~400 items) - Maximum</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn" id="start-btn" onclick="startTrendingScrape()">
+                        🔧 Start Fixed Scrape
+                    </button>
+                </div>
+                
+                <div class="fix-info">
+                    <strong>🔧 Recent Fixes:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Fixed deprecated BeautifulSoup 'text' parameter → 'string'</li>
+                        <li>Updated eBay selectors for current website structure</li>
+                        <li>Added comprehensive fallback extraction methods</li>
+                        <li>Improved data validation and error handling</li>
+                        <li>Enhanced title and price extraction algorithms</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="progress-section" id="progress-section">
+                <h3>🔧 Fixed Scraping Progress</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-card">
+                        <h4>Status</h4>
+                        <div class="status-value" id="status">Idle</div>
+                    </div>
+                    <div class="status-card">
+                        <h4>Current Page</h4>
+                        <div class="status-value" id="current-page">0/0</div>
+                    </div>
+                    <div class="status-card">
+                        <h4>Items Found</h4>
+                        <div class="status-value" id="items-found">0</div>
+                    </div>
+                    <div class="status-card">
+                        <h4>Current Item</h4>
+                        <div class="status-value" id="current-item">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="results-section" id="results-section">
+                <div class="results-header">
+                    <h3>🔥 Trending Items</h3>
+                    <div id="results-count"></div>
+                </div>
+                
+                <div class="stats-summary" id="stats-summary" style="display: none;">
+                    <h4 style="margin-bottom: 15px; color: #28a745;">📊 Quick Stats</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-items">0</div>
+                            <div class="stat-label">Total Items</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="avg-price">$0</div>
+                            <div class="stat-label">Avg Price</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-watchers">0</div>
+                            <div class="stat-label">Total Watchers</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-sold">0</div>
+                            <div class="stat-label">Items Sold</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="free-shipping-count">0</div>
+                            <div class="stat-label">Free Shipping</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="results-grid" class="results-grid">
+                    <div style="text-align: center; padding: 60px; color: #999; grid-column: 1/-1;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">🔧</div>
+                        <h3>Fixed Scraper Ready</h3>
+                        <p>Updated with modern selectors and improved extraction methods</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let progressInterval;
+        
+        async function startTrendingScrape() {
+            const category = document.getElementById('category').value;
+            const sortType = document.getElementById('sort-type').value;
+            const maxPages = parseInt(document.getElementById('max-pages').value);
+            
+            // UI updates
+            const startBtn = document.getElementById('start-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '🔧 Initializing Fixed Scraper...';
+            
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('results-grid').innerHTML = '';
+            document.getElementById('stats-summary').style.display = 'none';
+            
+            try {
+                const response = await fetch('/start_trending_scrape', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        category: category,
+                        sort_type: sortType,
+                        max_pages: maxPages
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                startBtn.innerHTML = '🔧 Fixed Scraping in Progress...';
+                
+                // Start progress monitoring
+                progressInterval = setInterval(updateProgress, 1000);
+                
+            } catch (error) {
+                showAlert('Error starting scrape: ' + error.message, 'error');
+                resetUI();
+            }
+        }
+        
+        async function updateProgress() {
+            try {
+                const response = await fetch('/progress');
+                const progress = await response.json();
+                
+                // Update progress bar
+                const progressPercent = progress.total_pages > 0 ? 
+                    (progress.current_page / progress.total_pages) * 100 : 0;
+                document.getElementById('progress-fill').style.width = progressPercent + '%';
+                
+                // Update status info
+                document.getElementById('status').textContent = capitalizeFirst(progress.status);
+                document.getElementById('current-page').textContent = 
+                    progress.current_page + '/' + progress.total_pages;
+                document.getElementById('items-found').textContent = progress.items_found;
+                document.getElementById('current-item').textContent = 
+                    progress.current_item || '-';
+                
+                // Update results if available
+                if (progress.items && progress.items.length > 0) {
+                    displayTrendingItems(progress.items);
+                    updateStats(progress.items);
+                }
+                
+                // Handle completion or error
+                if (progress.status === 'completed') {
+                    clearInterval(progressInterval);
+                    
+                    const startBtn = document.getElementById('start-btn');
+                    startBtn.innerHTML = '✅ Fixed Scraping Completed!';
+                    startBtn.classList.add('btn-success');
+                    
+                    if (progress.filename) {
+                        showDownloadSection(progress.filename, progress.items_found);
+                    }
+                    
+                    setTimeout(() => {
+                        resetUI();
+                    }, 5000);
+                    
+                } else if (progress.status === 'error') {
+                    clearInterval(progressInterval);
+                    showAlert('Scraping error: ' + progress.error_message, 'error');
+                    resetUI();
+                }
+                
+            } catch (error) {
+                console.error('Error updating progress:', error);
+            }
+        }
+        
+        function displayTrendingItems(items) {
+            const grid = document.getElementById('results-grid');
+            const displayItems = items.slice(0, 50);
+            
+            grid.innerHTML = displayItems.map(item => {
+                const trendingScore = item.trending_score || 0;
+                const hasImage = item.image_url && item.image_url !== 'N/A';
+                
+                return `
+                    <div class="result-card" onclick="openItemLink('${item.link}')">
+                        <div class="trending-badge">🔧 ${Math.round(trendingScore)}</div>
+                        
+                        ${hasImage ? 
+                            `<img src="${item.image_url}" class="result-image" alt="Product" 
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjE2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='">` :
+                            `<div class="result-image" style="background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%); display: flex; align-items: center; justify-content: center; color: #999; font-size: 24px;">📷</div>`
+                        }
+                        
+                        <div class="result-title">${item.title}</div>
+                        <div class="result-price">${item.price_text}</div>
+                        
+                        <div class="trending-metrics">
+                            ${item.watchers ? `<div class="metric highlight">👀 ${item.watchers} watching</div>` : ''}
+                            ${item.sold_count ? `<div class="metric highlight">📦 ${item.sold_count} sold</div>` : ''}
+                            ${item.bids ? `<div class="metric highlight">🔨 ${item.bids} bids</div>` : ''}
+                            ${item.free_shipping ? `<div class="metric">🚚 Free shipping</div>` : ''}
+                            ${item.best_offer ? `<div class="metric">💬 Best offer</div>` : ''}
+                        </div>
+                        
+                        <div class="result-details">
+                            <div><strong>Condition:</strong> ${item.condition}</div>
+                            <div><strong>Location:</strong> ${item.location}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('results-count').textContent = `Showing ${displayItems.length} of ${items.length} items`;
+        }
+        
+        function updateStats(items) {
+            document.getElementById('stats-summary').style.display = 'block';
+            
+            const totalItems = items.length;
+            const prices = items.filter(item => item.price).map(item => item.price);
+            const avgPrice = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+            const totalWatchers = items.reduce((sum, item) => sum + (item.watchers || 0), 0);
+            const totalSold = items.reduce((sum, item) => sum + (item.sold_count || 0), 0);
+            const freeShippingCount = items.filter(item => item.free_shipping).length;
+            
+            document.getElementById('total-items').textContent = totalItems;
+            document.getElementById('avg-price').textContent = avgPrice > 0 ? `${avgPrice.toFixed(0)}` : '$0';
+            document.getElementById('total-watchers').textContent = totalWatchers.toLocaleString();
+            document.getElementById('total-sold').textContent = totalSold.toLocaleString();
+            document.getElementById('free-shipping-count').textContent = freeShippingCount;
+        }
+        
+        function openItemLink(link) {
+            if (link && link !== 'N/A') {
+                window.open(link, '_blank');
+            }
+        }
+        
+        function showDownloadSection(filename, itemCount) {
+            const resultsSection = document.getElementById('results-section');
+            const downloadDiv = document.createElement('div');
+            downloadDiv.className = 'alert alert-success download-section';
+            downloadDiv.innerHTML = `
+                <h4>🎉 Fixed Scraping Completed Successfully!</h4>
+                <p style="margin: 15px 0;"><strong>${itemCount}</strong> items found using improved extraction methods</p>
+                <div style="margin-top: 20px;">
+                    <a href="/download/${filename}" class="btn" style="text-decoration: none; margin-right: 15px;">
+                        📥 Download CSV File
+                    </a>
+                    <button class="btn btn-success" onclick="resetUI()">
+                        🔧 Scrape Again
+                    </button>
+                </div>
+                <div style="margin-top: 15px; font-size: 14px; color: #666;">
+                    💡 <strong>Fixed CSV includes:</strong> Comprehensive data with improved extraction - 
+                    titles, prices, watchers, conditions, locations, and valid eBay links!
+                </div>
+            `;
+            resultsSection.insertBefore(downloadDiv, resultsSection.firstChild);
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            const container = document.querySelector('.main-content');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+        
+        function resetUI() {
+            const startBtn = document.getElementById('start-btn');
+            startBtn.disabled = false;
+            startBtn.innerHTML = '🔧 Start Fixed Scrape';
+            startBtn.classList.remove('btn-success');
+            
+            document.getElementById('progress-section').style.display = 'none';
+            
+            document.querySelectorAll('.download-section').forEach(div => div.remove());
+        }
+        
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+        
+        // Show fix notification
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                showAlert('🔧 Fixed scraper ready! Updated with modern selectors and comprehensive extraction.', 'success');
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

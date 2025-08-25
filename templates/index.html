@@ -1,75 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+    <title>eBay Scraper</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eBay Web Scraper</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        
         .container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             overflow: hidden;
         }
-        
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
             text-align: center;
         }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .content { padding: 30px; }
         
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-        
-        .main-content {
-            padding: 30px;
-        }
-        
-        .search-form {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 10px;
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
             margin-bottom: 30px;
         }
-        
-        .form-group {
-            margin-bottom: 20px;
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
         }
         
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .form-group { margin-bottom: 15px; }
         label {
             display: block;
             margin-bottom: 5px;
-            font-weight: 600;
+            font-weight: bold;
             color: #333;
         }
-        
         input, select {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
         }
-        
         input:focus, select:focus {
             outline: none;
             border-color: #667eea;
@@ -78,48 +85,59 @@
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 15px;
         }
         
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 5px;
             font-size: 16px;
-            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 10px;
         }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.trending { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); }
         
-        .btn:hover {
-            transform: translateY(-2px);
+        .trending-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
         }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        .trending-card {
+            background: white;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
         }
+        .trending-card:hover { border-color: #667eea; }
+        .trending-card.selected { border-color: #667eea; background: #f0f7ff; }
+        .trending-card h4 { margin-bottom: 5px; color: #333; }
+        .trending-card p { font-size: 12px; color: #666; }
         
         .progress-section {
             background: #f8f9fa;
-            padding: 25px;
+            padding: 20px;
             border-radius: 10px;
             margin-bottom: 30px;
             display: none;
         }
-        
         .progress-bar {
             width: 100%;
             height: 20px;
-            background: #e9ecef;
+            background: #ddd;
             border-radius: 10px;
             overflow: hidden;
-            margin: 20px 0;
+            margin: 15px 0;
         }
-        
         .progress-fill {
             height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -127,241 +145,395 @@
             transition: width 0.3s;
         }
         
-        .status-info {
+        .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
-            margin: 20px 0;
+            margin-top: 15px;
         }
-        
         .status-card {
             background: white;
             padding: 15px;
             border-radius: 8px;
             border-left: 4px solid #667eea;
         }
-        
-        .status-card h4 {
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-        
-        .results-section {
-            margin-top: 30px;
-        }
+        .status-card h4 { color: #667eea; margin-bottom: 5px; }
         
         .results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
-        
         .result-card {
             background: white;
-            border: 1px solid #e9ecef;
+            border: 1px solid #ddd;
             border-radius: 10px;
             padding: 15px;
-            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
         }
+        .result-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         
-        .result-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        .result-badges {
+            position: absolute;
+            top: 10px;
+            right: 10px;
         }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            color: white;
+            margin-left: 5px;
+        }
+        .badge.trending { background: #ff6b35; }
+        .badge.hot { background: #e74c3c; }
+        .badge.watched { background: #4ecdc4; }
         
         .result-image {
             width: 100%;
-            height: 150px;
+            height: 120px;
             object-fit: cover;
             border-radius: 8px;
             margin-bottom: 10px;
         }
-        
         .result-title {
-            font-weight: 600;
-            margin-bottom: 10px;
+            font-weight: bold;
+            margin-bottom: 8px;
             color: #333;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        
         .result-price {
-            font-size: 1.2em;
-            font-weight: bold;
+            font-size: 1.1em;
             color: #667eea;
+            font-weight: bold;
             margin-bottom: 5px;
         }
-        
         .result-details {
-            font-size: 0.9em;
+            font-size: 12px;
             color: #666;
         }
-        
-        .error {
-            background: #ffe6e6;
-            color: #d00;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
+        .result-stats {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #888;
         }
         
         .success {
-            background: #e6ffe6;
-            color: #060;
+            background: #d4edda;
+            color: #155724;
             padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
+            border-radius: 5px;
+            margin: 15px 0;
         }
         
         @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .container {
-                margin: 10px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .trending-options { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛒 eBay Web Scraper</h1>
-            <p>Real-time eBay data extraction with live progress tracking</p>
+            <h1>🚀 eBay Scraper</h1>
+            <p>Discover trending items and search specific products</p>
         </div>
         
-        <div class="main-content">
-            <div class="search-form">
-                <h2>Search Configuration</h2>
-                
-                <div class="form-group">
-                    <label for="keyword">Search Keyword *</label>
-                    <input type="text" id="keyword" placeholder="e.g., iPhone 15, vintage watch, gaming laptop" required>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="max-pages">Max Pages</label>
-                        <select id="max-pages">
-                            <option value="1">1 Page</option>
-                            <option value="2" selected>2 Pages</option>
-                            <option value="3">3 Pages</option>
-                            <option value="5">5 Pages</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="condition">Condition</label>
-                        <select id="condition">
-                            <option value="">Any Condition</option>
-                            <option value="New">New</option>
-                            <option value="Used">Used</option>
-                            <option value="Refurbished">Refurbished</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="price-min">Min Price ($)</label>
-                        <input type="number" id="price-min" placeholder="e.g., 50">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="price-max">Max Price ($)</label>
-                        <input type="number" id="price-max" placeholder="e.g., 500">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="sort-order">Sort By</label>
-                    <select id="sort-order">
-                        <option value="">Best Match</option>
-                        <option value="PricePlusShippingLowest">Price: Low to High</option>
-                        <option value="PricePlusShipping">Price: High to Low</option>
-                        <option value="EndTimeSoonest">Ending Soon</option>
-                        <option value="NewestFirst">Newly Listed</option>
-                    </select>
-                </div>
-                
-                <button class="btn" id="start-btn" onclick="startScraping()">
-                    🚀 Start Scraping
-                </button>
+        <div class="content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('trending')">🔥 Trending</button>
+                <button class="tab" onclick="switchTab('search')">🔍 Search</button>
             </div>
             
+            <!-- Trending Tab -->
+            <div id="trending-content" class="tab-content active">
+                <div class="form-grid">
+                    <div class="form-section">
+                        <h3>🔥 Discover Trending Items</h3>
+                        <p style="margin-bottom: 20px; color: #666;">Get hot items without searching!</p>
+                        
+                        <div class="trending-options">
+                            <div class="trending-card selected" data-trend="most_watched">
+                                <h4>👀 Most Watched</h4>
+                                <p>High watchers</p>
+                            </div>
+                            <div class="trending-card" data-trend="ending_soon">
+                                <h4>⏰ Ending Soon</h4>
+                                <p>Urgent auctions</p>
+                            </div>
+                            <div class="trending-card" data-trend="newly_listed">
+                                <h4>⭐ New Items</h4>
+                                <p>Fresh listings</p>
+                            </div>
+                            <div class="trending-card" data-trend="best_selling">
+                                <h4>📈 Best Selling</h4>
+                                <p>High sales</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="trending-category">
+                                <option value="all">🌟 ALL Categories</option>
+                                <option value="Electronics">📱 Electronics</option>
+                                <option value="Fashion">👕 Fashion</option>
+                                <option value="Home & Garden">🏠 Home</option>
+                                <option value="Collectibles">🎨 Collectibles</option>
+                                <option value="Sports">⚽ Sports</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Pages</label>
+                                <select id="trending-pages">
+                                    <option value="3">3 Pages</option>
+                                    <option value="5" selected>5 Pages</option>
+                                    <option value="10">10 Pages</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Min Price ($)</label>
+                                <input type="number" id="trending-min-price" placeholder="10">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Max Price ($)</label>
+                            <input type="number" id="trending-max-price" placeholder="1000">
+                        </div>
+                        
+                        <button class="btn trending" id="trending-btn">
+                            🔥 Discover Trending
+                        </button>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>📊 Stats</h3>
+                        <div class="status-grid">
+                            <div class="status-card">
+                                <h4>Items</h4>
+                                <span id="stat-items">0</span>
+                            </div>
+                            <div class="status-card">
+                                <h4>Categories</h4>
+                                <span id="stat-categories">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Tab -->
+            <div id="search-content" class="tab-content">
+                <div class="form-grid">
+                    <div class="form-section">
+                        <h3>🔍 Search Products</h3>
+                        
+                        <div class="form-group">
+                            <label>Keyword *</label>
+                            <input type="text" id="search-keyword" placeholder="iPhone, laptop, etc." required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Pages</label>
+                                <select id="search-pages">
+                                    <option value="2">2 Pages</option>
+                                    <option value="3" selected>3 Pages</option>
+                                    <option value="5">5 Pages</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Condition</label>
+                                <select id="search-condition">
+                                    <option value="">Any</option>
+                                    <option value="New">New</option>
+                                    <option value="Used">Used</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Min Price ($)</label>
+                                <input type="number" id="search-min-price" placeholder="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Max Price ($)</label>
+                                <input type="number" id="search-max-price" placeholder="500">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Sort By</label>
+                            <select id="search-sort">
+                                <option value="">Best Match</option>
+                                <option value="MostWatched">Most Watched</option>
+                                <option value="PricePlusShippingLowest">Price Low-High</option>
+                                <option value="EndTimeSoonest">Ending Soon</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn" id="search-btn">
+                            🔍 Start Search
+                        </button>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>📊 Search Stats</h3>
+                        <div class="status-grid">
+                            <div class="status-card">
+                                <h4>Found</h4>
+                                <span id="search-stat-items">0</span>
+                            </div>
+                            <div class="status-card">
+                                <h4>Avg Price</h4>
+                                <span id="search-stat-price">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress -->
             <div class="progress-section" id="progress-section">
-                <h3>Scraping Progress</h3>
+                <h3>Progress</h3>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
                 
-                <div class="status-info">
+                <div class="status-grid">
                     <div class="status-card">
                         <h4>Status</h4>
                         <span id="status">Idle</span>
                     </div>
                     <div class="status-card">
-                        <h4>Current Page</h4>
+                        <h4>Page</h4>
                         <span id="current-page">0/0</span>
                     </div>
                     <div class="status-card">
-                        <h4>Items Found</h4>
+                        <h4>Items</h4>
                         <span id="items-found">0</span>
                     </div>
                     <div class="status-card">
-                        <h4>Current Item</h4>
+                        <h4>Current</h4>
                         <span id="current-item">-</span>
                     </div>
                 </div>
             </div>
             
-            <div class="results-section" id="results-section">
-                <h3>Scraped Results</h3>
-                <div id="results-grid" class="results-grid">
-                    <!-- Results will be populated here -->
-                </div>
+            <!-- Results -->
+            <div id="results-section">
+                <h3>📦 Results</h3>
+                <div id="results-grid" class="results-grid"></div>
             </div>
         </div>
     </div>
 
     <script>
         let progressInterval;
+        let selectedTrendType = 'most_watched';
         
-        async function startScraping() {
-            const keyword = document.getElementById('keyword').value.trim();
-            if (!keyword) {
-                alert('Please enter a search keyword');
-                return;
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-content').classList.add('active');
+        }
+        
+        // Trending card selection
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.trending-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.trending-card').forEach(c => c.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedTrendType = this.dataset.trend;
+                });
+            });
+            
+            // Add event listeners for buttons
+            document.getElementById('trending-btn').addEventListener('click', startTrending);
+            document.getElementById('search-btn').addEventListener('click', startSearch);
+            
+            // Add Enter key support for search
+            const searchInput = document.getElementById('search-keyword');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        startSearch();
+                    }
+                });
             }
+        });
+        
+        async function startTrending() {
+            const category = document.getElementById('trending-category').value;
+            const maxPages = parseInt(document.getElementById('trending-pages').value);
+            const priceMin = document.getElementById('trending-min-price').value;
+            const priceMax = document.getElementById('trending-max-price').value;
             
-            const maxPages = parseInt(document.getElementById('max-pages').value);
-            const filters = {
-                condition: document.getElementById('condition').value,
-                price_min: document.getElementById('price-min').value,
-                price_max: document.getElementById('price-max').value,
-                sort_order: document.getElementById('sort-order').value
-            };
-            
-            // Disable button and show progress
-            document.getElementById('start-btn').disabled = true;
-            document.getElementById('start-btn').textContent = '⏳ Starting...';
+            document.getElementById('trending-btn').disabled = true;
+            document.getElementById('trending-btn').textContent = '⏳ Discovering...';
             document.getElementById('progress-section').style.display = 'block';
             document.getElementById('results-grid').innerHTML = '';
             
             try {
-                const response = await fetch('/start_scrape', {
+                const response = await fetch('/start_trending', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        trend_type: selectedTrendType,
+                        category: category,
+                        max_pages: maxPages,
+                        price_min: priceMin || null,
+                        price_max: priceMax || null
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+                
+                progressInterval = setInterval(updateProgress, 1000);
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                resetUI();
+            }
+        }
+        
+        async function startSearch() {
+            const keyword = document.getElementById('search-keyword').value.trim();
+            if (!keyword) {
+                alert('Please enter a keyword');
+                return;
+            }
+            
+            const maxPages = parseInt(document.getElementById('search-pages').value);
+            const filters = {
+                condition: document.getElementById('search-condition').value,
+                price_min: document.getElementById('search-min-price').value,
+                price_max: document.getElementById('search-max-price').value,
+                sort_order: document.getElementById('search-sort').value
+            };
+            
+            document.getElementById('search-btn').disabled = true;
+            document.getElementById('search-btn').textContent = '⏳ Searching...';
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('results-grid').innerHTML = '';
+            
+            try {
+                const response = await fetch('/start_search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         keyword: keyword,
                         max_pages: maxPages,
@@ -370,12 +542,8 @@
                 });
                 
                 const result = await response.json();
+                if (result.error) throw new Error(result.error);
                 
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                
-                // Start progress monitoring
                 progressInterval = setInterval(updateProgress, 1000);
                 
             } catch (error) {
@@ -389,12 +557,10 @@
                 const response = await fetch('/progress');
                 const progress = await response.json();
                 
-                // Update progress bar
                 const progressPercent = progress.total_pages > 0 ? 
                     (progress.current_page / progress.total_pages) * 100 : 0;
                 document.getElementById('progress-fill').style.width = progressPercent + '%';
                 
-                // Update status info
                 document.getElementById('status').textContent = progress.status;
                 document.getElementById('current-page').textContent = 
                     progress.current_page + '/' + progress.total_pages;
@@ -402,25 +568,32 @@
                 document.getElementById('current-item').textContent = 
                     progress.current_item || '-';
                 
-                // Update results
+                // Update stats
+                document.getElementById('stat-items').textContent = progress.items_found;
+                document.getElementById('search-stat-items').textContent = progress.items_found;
+                
+                // Display results
                 if (progress.items && progress.items.length > 0) {
-                    displayResults(progress.items);
+                    displayResults(progress.items, progress.scrape_type);
                 }
                 
-                // Handle completion or error
                 if (progress.status === 'completed') {
                     clearInterval(progressInterval);
-                    document.getElementById('start-btn').textContent = '✅ Completed!';
-                    setTimeout(() => {
-                        resetUI();
-                    }, 3000);
+                    
+                    if (progress.scrape_type === 'trending') {
+                        document.getElementById('trending-btn').textContent = '✅ Complete!';
+                    } else {
+                        document.getElementById('search-btn').textContent = '✅ Complete!';
+                    }
+                    
+                    setTimeout(resetUI, 3000);
                     
                     if (progress.filename) {
-                        showDownloadLink(progress.filename);
+                        showDownloadLink(progress.filename, progress.items_found);
                     }
                 } else if (progress.status === 'error') {
                     clearInterval(progressInterval);
-                    alert('Scraping error: ' + progress.error_message);
+                    alert('Error: ' + progress.error_message);
                     resetUI();
                 }
                 
@@ -429,48 +602,114 @@
             }
         }
         
-        function displayResults(items) {
+        function displayResults(items, scrapeType) {
             const grid = document.getElementById('results-grid');
             grid.innerHTML = '';
             
-            items.slice(0, 20).forEach(item => {  // Show max 20 items in web view
+            // Sort by trending score if available
+            const sortedItems = scrapeType === 'trending' ? 
+                items.sort((a, b) => (b.trending_score || 0) - (a.trending_score || 0)) : items;
+            
+            sortedItems.slice(0, 30).forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'result-card';
                 
+                let badges = '';
+                if (scrapeType === 'trending') {
+                    badges += '<span class="badge trending">TRENDING</span>';
+                }
+                if (item.trending_score > 20) badges += '<span class="badge hot">HOT</span>';
+                if (item.watchers > 10) badges += '<span class="badge watched">WATCHED</span>';
+                
                 card.innerHTML = `
+                    ${badges ? `<div class="result-badges">${badges}</div>` : ''}
                     ${item.image_url !== 'N/A' ? 
-                        `<img src="${item.image_url}" class="result-image" alt="Product image">` : 
-                        '<div style="height: 150px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">No Image</div>'
+                        `<img src="${item.image_url}" class="result-image" alt="Product" onerror="this.style.display='none'">` : 
+                        '<div style="height: 120px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #999;">No Image</div>'
                     }
                     <div class="result-title">${item.title}</div>
                     <div class="result-price">${item.price_text}</div>
                     <div class="result-details">
-                        <div>Shipping: ${item.shipping}</div>
-                        <div>Condition: ${item.condition}</div>
-                        <div>Location: ${item.location}</div>
+                        <div>📦 ${item.shipping}</div>
+                        <div>✨ ${item.condition}</div>
+                        <div>📍 ${item.location}</div>
+                        ${item.category ? `<div>📂 ${item.category}</div>` : ''}
                     </div>
+                    ${(item.watchers || item.sold_count || item.trending_score) ? `
+                        <div class="result-stats">
+                            ${item.watchers ? `👀 ${item.watchers} ` : ''}
+                            ${item.sold_count ? `📦 ${item.sold_count} sold ` : ''}
+                            ${item.trending_score ? `🏆 ${item.trending_score}` : ''}
+                        </div>
+                    ` : ''}
                 `;
+                
+                // Add click handler to open eBay link
+                if (item.link !== 'N/A') {
+                    card.onclick = () => window.open(item.link, '_blank');
+                }
                 
                 grid.appendChild(card);
             });
+            
+            // Calculate and display average price
+            const itemsWithPrice = items.filter(item => item.price);
+            if (itemsWithPrice.length > 0) {
+                const avgPrice = itemsWithPrice.reduce((sum, item) => sum + item.price, 0) / itemsWithPrice.length;
+                document.getElementById('search-stat-price').textContent = ' + avgPrice.toFixed(2);
+                
+                // Count categories if trending
+                if (scrapeType === 'trending') {
+                    const categories = new Set(items.map(item => item.category).filter(cat => cat));
+                    document.getElementById('stat-categories').textContent = categories.size;
+                }
+            }
         }
         
-        function showDownloadLink(filename) {
+        function showDownloadLink(filename, itemCount) {
             const resultsSection = document.getElementById('results-section');
+            
+            // Remove existing download links
+            const existingSuccess = resultsSection.querySelector('.success');
+            if (existingSuccess) {
+                existingSuccess.remove();
+            }
+            
             const downloadDiv = document.createElement('div');
             downloadDiv.className = 'success';
             downloadDiv.innerHTML = `
-                <p>✅ Scraping completed! ${document.getElementById('items-found').textContent} items found.</p>
-                <a href="/download/${filename}" class="btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">
-                    📥 Download CSV File
-                </a>
+                <h4>✅ Scraping Complete!</h4>
+                <p><strong>${itemCount}</strong> items found and saved</p>
+                <div style="margin-top: 10px;">
+                    <a href="/download/${filename}" class="btn" style="display: inline-block; text-decoration: none; width: auto; padding: 8px 16px; margin-right: 10px;">
+                        📥 Download CSV
+                    </a>
+                    <button class="btn" onclick="resetUI()" style="width: auto; padding: 8px 16px; background: #28a745;">
+                        🔄 New Search
+                    </button>
+                </div>
             `;
             resultsSection.insertBefore(downloadDiv, resultsSection.firstChild);
         }
         
         function resetUI() {
-            document.getElementById('start-btn').disabled = false;
-            document.getElementById('start-btn').textContent = '🚀 Start Scraping';
+            // Reset buttons
+            document.getElementById('trending-btn').disabled = false;
+            document.getElementById('trending-btn').textContent = '🔥 Discover Trending';
+            document.getElementById('search-btn').disabled = false;
+            document.getElementById('search-btn').textContent = '🔍 Start Search';
+            
+            // Hide progress
+            document.getElementById('progress-section').style.display = 'none';
+            
+            // Clear success messages
+            document.querySelectorAll('.success').forEach(div => div.remove());
+            
+            // Reset stats
+            document.getElementById('stat-items').textContent = '0';
+            document.getElementById('stat-categories').textContent = '0';
+            document.getElementById('search-stat-items').textContent = '0';
+            document.getElementById('search-stat-price').textContent = '$0';
         }
     </script>
 </body>

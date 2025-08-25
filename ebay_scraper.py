@@ -1,3 +1,5 @@
+# C:\Users\ADMIN\ebay-scraper\ebay_scraper.py
+
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -7,10 +9,32 @@ from urllib.parse import urlencode, quote_plus
 import re
 import json
 from datetime import datetime
+import threading
 
 class EbayScraper:
     def __init__(self):
         self.base_url = "https://www.ebay.com/sch/i.html"
+        self.trending_urls = {
+            'most_watched': 'https://www.ebay.com/sch/i.html?_sop=7&_nkw=*',  # Most watched
+            'ending_soon': 'https://www.ebay.com/sch/i.html?_sop=1&_nkw=*',   # Ending soon
+            'newly_listed': 'https://www.ebay.com/sch/i.html?_sop=10&_nkw=*', # Newly listed
+            'best_selling': 'https://www.ebay.com/sch/i.html?_sop=12&LH_Sold=1&_nkw=*', # Best selling
+        }
+        
+        # Popular categories for trending items
+        self.trending_categories = {
+            'Electronics': '293',
+            'Fashion': '11450', 
+            'Home & Garden': '11700',
+            'Collectibles': '1',
+            'Motors': '6000',
+            'Sports': '888',
+            'Health & Beauty': '26395',
+            'Toys': '220',
+            'Business': '12576',
+            'Music': '11233'
+        }
+        
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -31,10 +55,8 @@ class EbayScraper:
         params = {
             '_nkw': keyword,
             '_sacat': '0',  # All categories
-            '_from': 'R40',  # Search results
-            '_trksid': 'p2334524.m570.l1313',  # Track search
-            '_odkw': '',  # Previous search
-            '_osacat': '0'  # All categories
+            '_from': 'R40',
+            '_trksid': 'p2334524.m570.l1313'
         }
         
         if category:
@@ -69,6 +91,128 @@ class EbayScraper:
         
         return f"{self.base_url}?{urlencode(params)}"
 
+    def build_trending_url(self, trend_type, category=None, price_min=None, price_max=None):
+        """Build URL for trending items discovery"""
+        base_params = {
+            '_from': 'R40',
+            '_trksid': 'p2334524.m570.l1313'
+        }
+        
+        # Add trending-specific parameters
+        if trend_type == 'most_watched':
+            base_params.update({
+                '_sop': '7',  # Sort by most watched
+                '_nkw': '*'   # All items
+            })
+        elif trend_type == 'ending_soon':
+            base_params.update({
+                '_sop': '1',  # Sort by ending soonest
+                '_nkw': '*',
+                'LH_Auction': '1'  # Auctions only
+            })
+        elif trend_type == 'newly_listed':
+            base_params.update({
+                '_sop': '10',  # Sort by newly listed
+                '_nkw': '*'
+            })
+        elif trend_type == 'best_selling':
+            base_params.update({
+                '_sop': '12',  # Best match (but with sold filter)
+                'LH_Sold': '1',  # Sold listings
+                '_nkw': '*'
+            })
+        elif trend_type == 'hot_deals':
+            base_params.update({
+                '_sop': '16',  # Price + shipping lowest
+                '_nkw': '*',
+                'LH_BIN': '1',  # Buy it now
+                'rt': 'nc'      # New condition
+            })
+        
+        # Add category filter
+        if category and category in self.trending_categories:
+            base_params['_sacat'] = self.trending_categories[category]
+        else:
+            base_params['_sacat'] = '0'  # All categories
+        
+        # Add price filters
+        if price_min:
+            base_params['_udlo'] = str(price_min)
+        if price_max:
+            base_params['_udhi'] = str(price_max)
+            
+        return f"{self.base_url}?{urlencode(base_params)}"
+
+    def scrape_trending_items(self, trend_type='most_watched', category=None, max_pages=5, price_min=None, price_max=None):
+        """Scrape trending/fast-moving items from eBay"""
+        print(f"🔥 Discovering {trend_type.replace('_', ' ').title()} items...")
+        
+        url = self.build_trending_url(trend_type, category, price_min, price_max)
+        print(f"🔗 Trending URL: {url}")
+        
+        return self.scrape_search_results(url, max_pages)
+
+    def scrape_all_trending_categories(self, trend_type='most_watched', max_pages=3, price_min=None, price_max=None):
+        """Scrape trending items from ALL categories"""
+        print(f"🌟 Scraping {trend_type.replace('_', ' ').title()} items from ALL categories...")
+        print("This will take longer but get you EVERYTHING trending!")
+        
+        all_trending_items = []
+        
+        # Scrape each category
+        for category_name, category_id in self.trending_categories.items():
+            print(f"\n📂 Scraping {category_name} category...")
+            
+            try:
+                # Build category-specific trending URL
+                url = self.build_trending_url(trend_type, category_name, price_min, price_max)
+                category_items = self.scrape_search_results(url, max_pages)
+                
+                # Add category info to each item
+                for item in category_items:
+                    item['category'] = category_name
+                    item['trend_type'] = trend_type
+                
+                all_trending_items.extend(category_items)
+                print(f"✅ Found {len(category_items)} trending items in {category_name}")
+                
+                # Small delay between categories
+                time.sleep(random.uniform(2, 4))
+                
+            except Exception as e:
+                print(f"❌ Error scraping {category_name}: {e}")
+                continue
+        
+        print(f"\n🎉 Total trending items found: {len(all_trending_items)}")
+        return all_trending_items
+
+    def scrape_multiple_trending_types(self, max_pages=3, categories=None):
+        """Scrape multiple types of trending items at once"""
+        print("🚀 Scraping ALL types of trending items...")
+        
+        trending_types = ['most_watched', 'ending_soon', 'newly_listed', 'best_selling']
+        all_items = []
+        
+        for trend_type in trending_types:
+            print(f"\n{'='*50}")
+            print(f"🔍 Now scraping: {trend_type.replace('_', ' ').title()}")
+            print('='*50)
+            
+            if categories:
+                # Scrape specific categories
+                for category in categories:
+                    items = self.scrape_trending_items(trend_type, category, max_pages)
+                    for item in items:
+                        item['category'] = category
+                        item['trend_type'] = trend_type
+                    all_items.extend(items)
+            else:
+                # Scrape all categories
+                items = self.scrape_all_trending_categories(trend_type, max_pages)
+                all_items.extend(items)
+        
+        return all_items
+
     def extract_price(self, price_text):
         """Extract numeric price from price string"""
         if not price_text:
@@ -92,30 +236,12 @@ class EbayScraper:
                 return None
         return None
 
-    def get_item_specifics(self, item_container):
-        """Extract additional item details like brand, model, etc."""
-        specifics = {}
-        
-        try:
-            # Look for item specifics in various places
-            specific_elements = item_container.find_all('span', class_='s-item__detail')
-            for elem in specific_elements:
-                text = elem.get_text(strip=True)
-                if 'Brand:' in text:
-                    specifics['brand'] = text.replace('Brand:', '').strip()
-                elif 'Model:' in text:
-                    specifics['model'] = text.replace('Model:', '').strip()
-        except:
-            pass
-        
-        return specifics
-
     def scrape_search_results(self, url, max_pages=3):
         """Scrape eBay search results with enhanced extraction"""
         all_items = []
         
         for page in range(1, max_pages + 1):
-            print(f"Scraping page {page}...")
+            print(f"   📄 Scraping page {page}...")
             
             # Add page parameter
             page_url = f"{url}&_pgn={page}"
@@ -129,96 +255,81 @@ class EbayScraper:
                 
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
-                # Multiple selectors to find items - Enhanced approach
+                # Multiple selectors to find items
                 items = []
-                
-                # Try different item container selectors with priority order
                 selectors = [
                     'div.s-item__wrapper',
                     'div.s-item',
                     '.srp-results .s-item',
                     '[data-testid="item-card"]',
-                    '.srp-river-results .s-item',
-                    '.s-item__info'
+                    '.srp-river-results .s-item'
                 ]
                 
                 for selector in selectors:
                     found_items = soup.select(selector)
-                    if found_items and len(found_items) > 5:  # Must find reasonable number of items
+                    if found_items and len(found_items) > 5:
                         items = found_items
-                        print(f"Found {len(items)} items using selector: {selector}")
                         break
                 
-                if not items:
-                    print(f"No items found on page {page} - trying backup method")
-                    # Fallback: look for any div containing item-related data
-                    items = soup.find_all('div', {'class': lambda x: x and any(
-                        keyword in x.lower() for keyword in ['s-item', 'item', 'listing']
-                    )})
-                
                 page_items = []
-                for i, item in enumerate(items[:60]):  # Limit per page to avoid overload
+                for i, item in enumerate(items[:60]):
                     try:
                         item_data = self.extract_enhanced_item_data(item)
                         if item_data and self.is_valid_item(item_data):
-                            all_items.append(item_data)
-                            page_items.append(item_data)
-                            print(f"✓ Extracted: {item_data.get('title', 'Unknown')[:50]}...")
+                            # Filter for truly trending items
+                            if self.is_trending_item(item_data):
+                                all_items.append(item_data)
+                                page_items.append(item_data)
                     except Exception as e:
-                        print(f"Error extracting item {i}: {e}")
                         continue
                 
-                print(f"Found {len(page_items)} valid items on page {page}")
+                print(f"   ✅ Found {len(page_items)} trending items on page {page}")
                 
-                if len(page_items) == 0:
-                    print("No valid items found, trying next page...")
-                    if page == 1:  # If first page fails, continue to see if other pages work
-                        continue
-                    else:
-                        break
+                if len(page_items) == 0 and page > 1:
+                    break
                 
             except requests.RequestException as e:
-                print(f"Error fetching page {page}: {e}")
+                print(f"   ❌ Error fetching page {page}: {e}")
                 break
         
         return all_items
 
+    def is_trending_item(self, item_data):
+        """Check if an item is truly trending/fast-moving"""
+        # Must have watchers OR sold count OR ending soon
+        has_watchers = item_data.get('watchers', 0) > 2
+        has_sales = item_data.get('sold_count', 0) > 5
+        ending_soon = item_data.get('time_left', 'N/A') != 'N/A'
+        has_price = item_data.get('price', 0) > 0
+        
+        # At least one trending indicator + valid price
+        return (has_watchers or has_sales or ending_soon) and has_price
+
     def extract_enhanced_item_data(self, item):
-        """Enhanced item data extraction with multiple fallback methods"""
+        """Enhanced item data extraction"""
         try:
             data = {}
             
-            # Title extraction with multiple selectors
+            # Title
             title = self.extract_title(item)
-            if not title or title in ['N/A', '', 'Shop on eBay', 'Opens in a new window or tab']:
+            if not title:
                 return None
-            
             data['title'] = title
             
-            # Price extraction
+            # Price
             price_text, price = self.extract_price_info(item)
             data['price'] = price
             data['price_text'] = price_text
             
-            # Shipping
+            # Basic details
             data['shipping'] = self.extract_shipping(item)
-            
-            # Condition
             data['condition'] = self.extract_condition(item)
-            
-            # Location
             data['location'] = self.extract_location(item)
-            
-            # Seller
             data['seller'] = self.extract_seller(item)
-            
-            # Link
             data['link'] = self.extract_link(item)
-            
-            # Image
             data['image_url'] = self.extract_image(item)
             
-            # Additional enhanced details
+            # Trending indicators
             data['watchers'] = self.extract_watchers(item)
             data['sold_count'] = self.extract_sold_count(item)
             data['time_left'] = self.extract_time_left(item)
@@ -227,19 +338,43 @@ class EbayScraper:
             data['best_offer'] = self.check_best_offer(item)
             data['auction'] = self.check_auction(item)
             
-            # Item specifics
-            specifics = self.get_item_specifics(item)
-            data.update(specifics)
+            # Calculate trending score
+            data['trending_score'] = self.calculate_trending_score(data)
             
-            # Add timestamp
             data['scraped_at'] = datetime.now().isoformat()
             
             return data
             
         except Exception as e:
-            print(f"Error in enhanced extraction: {e}")
             return None
 
+    def calculate_trending_score(self, item_data):
+        """Calculate a trending score for sorting"""
+        score = 0
+        
+        # Watchers contribute to score
+        watchers = item_data.get('watchers', 0)
+        score += watchers * 2
+        
+        # Sold count contributes more
+        sold_count = item_data.get('sold_count', 0)
+        score += sold_count * 3
+        
+        # Ending soon adds urgency
+        if item_data.get('time_left', 'N/A') != 'N/A':
+            score += 10
+            
+        # Free shipping adds appeal
+        if item_data.get('free_shipping'):
+            score += 5
+            
+        # Best offer adds flexibility
+        if item_data.get('best_offer'):
+            score += 3
+        
+        return score
+
+    # Include all the extraction methods from the previous scraper
     def extract_title(self, item):
         """Extract title with multiple fallback methods"""
         selectors = [
@@ -247,382 +382,233 @@ class EbayScraper:
             'h3[role="heading"]',
             '.s-item__title',
             'a.s-item__link',
-            'h3',
-            '.x-item-title-label h3',
-            '[data-testid="item-title"]'
+            'h3'
         ]
         
         for selector in selectors:
             elem = item.select_one(selector)
             if elem:
                 title = elem.get_text(strip=True)
-                # Filter out unwanted titles
                 unwanted = ['shop on ebay', 'opens in new window or tab', 'n/a', '', 'ebay']
                 if title and title.lower() not in unwanted and len(title) > 10:
-                    # Remove "New Listing" prefix if present
                     title = re.sub(r'^(New Listing[:\-\s]*)', '', title, flags=re.IGNORECASE)
                     return title.strip()
-        
         return None
 
     def extract_price_info(self, item):
-        """Extract price information with enhanced detection"""
+        """Extract price information"""
         selectors = [
             '.s-item__price .notranslate',
             '.s-item__price',
-            '.notranslate',
-            '[data-testid="price"]',
-            '.u-flL.condText',
-            'span.s-item__price',
-            '.price .notranslate'
+            '.notranslate'
         ]
         
         for selector in selectors:
             elem = item.select_one(selector)
             if elem:
                 price_text = elem.get_text(strip=True)
-                if price_text and any(symbol in price_text for symbol in ['$', '£', '€', '¥']):
+                if price_text and '$' in price_text:
                     return price_text, self.extract_price(price_text)
-        
         return 'N/A', None
 
     def extract_shipping(self, item):
         """Extract shipping information"""
-        selectors = [
-            '.s-item__shipping',
-            '.s-item__freeXDays',
-            '[data-testid="shipping-cost"]',
-            '.s-item__detail--primary'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                shipping = elem.get_text(strip=True)
-                if 'shipping' in shipping.lower() or 'free' in shipping.lower():
-                    return shipping
-        
-        return 'N/A'
+        elem = item.select_one('.s-item__shipping')
+        return elem.get_text(strip=True) if elem else 'N/A'
 
     def extract_condition(self, item):
         """Extract item condition"""
-        selectors = [
-            '.s-item__subtitle .SECONDARY_INFO',
-            '.s-item__subtitle',
-            '.SECONDARY_INFO',
-            '[data-testid="item-condition"]',
-            '.s-item__condition'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                condition = elem.get_text(strip=True)
-                # Check if it's actually a condition
-                condition_keywords = ['new', 'used', 'refurbished', 'open box', 'pre-owned', 'brand new']
-                if any(keyword in condition.lower() for keyword in condition_keywords):
-                    return condition
-        
+        elem = item.select_one('.s-item__subtitle')
+        if elem:
+            condition = elem.get_text(strip=True)
+            condition_keywords = ['new', 'used', 'refurbished', 'open box', 'pre-owned']
+            if any(keyword in condition.lower() for keyword in condition_keywords):
+                return condition
         return 'N/A'
 
     def extract_location(self, item):
         """Extract seller location"""
-        selectors = [
-            '.s-item__location',
-            '.s-item__itemLocation',
-            '[data-testid="item-location"]'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                location = elem.get_text(strip=True)
-                # Filter out non-location text
-                if location and len(location) > 2 and not location.startswith('From'):
-                    return location
-        
-        return 'N/A'
+        elem = item.select_one('.s-item__location')
+        return elem.get_text(strip=True) if elem else 'N/A'
 
     def extract_seller(self, item):
         """Extract seller information"""
-        selectors = [
-            '.s-item__seller-info-text',
-            '.s-item__seller',
-            '[data-testid="seller-name"]'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                return elem.get_text(strip=True)
-        
-        return 'N/A'
+        elem = item.select_one('.s-item__seller-info-text')
+        return elem.get_text(strip=True) if elem else 'N/A'
 
     def extract_link(self, item):
         """Extract item link"""
-        selectors = [
-            'a.s-item__link',
-            'h3 a',
-            'a[href*="/itm/"]',
-            'a[href*="ebay.com"]'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem and elem.get('href'):
-                href = elem.get('href')
-                if href.startswith('http'):
-                    return href
-                elif href.startswith('/'):
-                    return f"https://www.ebay.com{href}"
-        
+        elem = item.select_one('a.s-item__link')
+        if elem and elem.get('href'):
+            href = elem.get('href')
+            return href if href.startswith('http') else f"https://www.ebay.com{href}"
         return 'N/A'
 
     def extract_image(self, item):
-        """Extract product image with better quality detection"""
-        selectors = [
-            '.s-item__image img',
-            'img.s-item__image',
-            'img[src*="ebayimg"]',
-            'img[data-src*="ebayimg"]',
-            'img[src*="i.ebayimg.com"]'
-        ]
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                # Try src first, then data-src
-                img_url = elem.get('src') or elem.get('data-src')
-                if img_url and 'ebayimg.com' in img_url:
-                    # Try to get higher quality version
-                    if 's-l' in img_url:
-                        # Replace with higher quality
-                        img_url = img_url.replace('s-l64', 's-l300').replace('s-l140', 's-l300')
-                    return img_url
-        
+        """Extract product image"""
+        elem = item.select_one('.s-item__image img')
+        if elem:
+            img_url = elem.get('src') or elem.get('data-src')
+            if img_url and 'ebayimg.com' in img_url:
+                return img_url.replace('s-l64', 's-l300').replace('s-l140', 's-l300')
         return 'N/A'
 
     def extract_watchers(self, item):
         """Extract number of watchers"""
         text_content = item.get_text()
         watchers_match = re.search(r'(\d+)\s*watchers?', text_content, re.IGNORECASE)
-        if watchers_match:
-            return int(watchers_match.group(1))
-        return 0
+        return int(watchers_match.group(1)) if watchers_match else 0
 
     def extract_sold_count(self, item):
         """Extract sold count"""
         text_content = item.get_text()
         sold_match = re.search(r'(\d+)\s*sold', text_content, re.IGNORECASE)
-        if sold_match:
-            return int(sold_match.group(1))
-        return 0
+        return int(sold_match.group(1)) if sold_match else 0
 
     def extract_time_left(self, item):
         """Extract time left for auction items"""
-        selectors = ['.s-item__time-left', '.s-item__timeLeft', '.s-item__time']
-        
-        for selector in selectors:
-            elem = item.select_one(selector)
-            if elem:
-                time_left = elem.get_text(strip=True)
-                if any(word in time_left.lower() for word in ['day', 'hour', 'minute', 'second']):
-                    return time_left
-        
+        elem = item.select_one('.s-item__time-left')
+        if elem:
+            time_left = elem.get_text(strip=True)
+            if any(word in time_left.lower() for word in ['day', 'hour', 'minute']):
+                return time_left
         return 'N/A'
 
     def extract_buy_it_now(self, item):
         """Check if item has Buy It Now option"""
-        bin_indicators = ['.s-item__purchase-options', '.s-item__buyItNowOption', 'Buy It Now']
-        
-        for indicator in bin_indicators:
-            if indicator.startswith('.'):
-                elem = item.select_one(indicator)
-                if elem:
-                    return True
-            else:
-                if indicator in item.get_text():
-                    return True
-        
-        return False
+        return 'Buy It Now' in item.get_text()
 
     def check_free_shipping(self, item):
         """Check if item has free shipping"""
-        text_content = item.get_text().lower()
-        return 'free shipping' in text_content or 'free postage' in text_content
+        return 'free shipping' in item.get_text().lower()
 
     def check_best_offer(self, item):
         """Check if item accepts best offers"""
-        text_content = item.get_text().lower()
-        return 'best offer' in text_content or 'make offer' in text_content
+        return 'best offer' in item.get_text().lower()
 
     def check_auction(self, item):
         """Check if item is an auction"""
-        text_content = item.get_text().lower()
-        return any(word in text_content for word in ['bid', 'auction', 'time left'])
+        text = item.get_text().lower()
+        return any(word in text for word in ['bid', 'auction', 'time left'])
 
     def is_valid_item(self, item_data):
-        """Enhanced validation for extracted item data"""
+        """Validate extracted item data"""
         if not item_data:
             return False
         
         title = item_data.get('title', '')
-        
-        # Filter out invalid/promotional titles
-        invalid_patterns = [
-            r'^shop on ebay',
-            r'^opens in new',
-            r'^ebay$',
-            r'^advertisement',
-            r'^sponsored',
-            r'^\s*$'
-        ]
-        
-        for pattern in invalid_patterns:
-            if re.match(pattern, title.lower().strip()):
-                return False
-        
-        # Must have meaningful title and at least price OR link
         if len(title.strip()) < 10:
             return False
-        
+            
         has_price = item_data.get('price') is not None and item_data.get('price') > 0
-        has_link = item_data.get('link') != 'N/A'
-        
-        return has_price or has_link
+        return has_price
 
-    def save_to_csv(self, items, filename='ebay_results.csv'):
-        """Save scraped data to CSV file with enhanced formatting"""
+    def save_to_csv(self, items, filename='trending_items.csv'):
+        """Save trending items to CSV with enhanced formatting"""
         if not items:
             print("No items to save")
             return
         
-        # Ensure data directory exists
         import os
         os.makedirs(os.path.dirname(filename) if os.path.dirname(filename) else '.', exist_ok=True)
         
+        # Sort by trending score
+        items.sort(key=lambda x: x.get('trending_score', 0), reverse=True)
+        
         df = pd.DataFrame(items)
         
-        # Reorder columns for better CSV layout
+        # Preferred column order for trending analysis
         preferred_order = [
-            'title', 'price', 'price_text', 'condition', 'shipping', 
-            'location', 'seller', 'watchers', 'sold_count', 'time_left',
-            'buy_it_now', 'free_shipping', 'best_offer', 'auction',
-            'link', 'image_url', 'brand', 'model', 'scraped_at'
+            'title', 'price', 'price_text', 'trending_score', 'watchers', 'sold_count', 
+            'time_left', 'condition', 'category', 'trend_type', 'shipping', 'location', 
+            'seller', 'buy_it_now', 'free_shipping', 'best_offer', 'auction',
+            'link', 'image_url', 'scraped_at'
         ]
         
-        # Reorder columns that exist
         existing_cols = [col for col in preferred_order if col in df.columns]
         remaining_cols = [col for col in df.columns if col not in preferred_order]
         final_order = existing_cols + remaining_cols
         
         df = df[final_order]
         df.to_csv(filename, index=False, encoding='utf-8')
-        print(f"Saved {len(items)} items to {filename}")
+        print(f"💾 Saved {len(items)} trending items to {filename}")
 
     def search_and_scrape(self, keyword, max_pages=3, **kwargs):
-        """Main method to search and scrape eBay with enhanced output"""
-        print(f"🚀 Starting Enhanced eBay scrape for: '{keyword}'")
-        
-        # Build search URL
+        """Regular search functionality"""
+        print(f"🔍 Searching for: '{keyword}'")
         url = self.build_search_url(keyword, **kwargs)
-        print(f"🔗 Search URL: {url}")
-        
-        # Scrape results
-        items = self.scrape_search_results(url, max_pages)
-        
-        if not items:
-            print("❌ No valid items found. Try different search terms or check your connection.")
-            return []
-        
-        print(f"✅ Total valid items scraped: {len(items)}")
-        
-        # Enhanced results summary
-        self.print_results_summary(items)
-        
-        return items
+        return self.scrape_search_results(url, max_pages)
 
-    def print_results_summary(self, items):
-        """Print enhanced summary of scraped results"""
+    def get_trending_summary(self, items):
+        """Generate summary of trending items"""
         if not items:
             return
-        
+            
         print(f"\n{'='*60}")
-        print(f"📊 SCRAPING RESULTS SUMMARY")
+        print(f"🔥 TRENDING ITEMS SUMMARY")
         print(f"{'='*60}")
         
-        # Basic stats
         total_items = len(items)
-        items_with_price = [item for item in items if item.get('price')]
+        print(f"📊 Total trending items found: {total_items}")
         
+        # Category breakdown
+        if any('category' in item for item in items):
+            categories = {}
+            for item in items:
+                cat = item.get('category', 'Unknown')
+                categories[cat] = categories.get(cat, 0) + 1
+            
+            print(f"\n📂 Category Breakdown:")
+            for cat, count in sorted(categories.items(), key=lambda x: x[1], reverse=True):
+                print(f"   {cat}: {count} items")
+        
+        # Trending type breakdown
+        if any('trend_type' in item for item in items):
+            trend_types = {}
+            for item in items:
+                trend = item.get('trend_type', 'Unknown')
+                trend_types[trend] = trend_types.get(trend, 0) + 1
+            
+            print(f"\n🔥 Trending Type Breakdown:")
+            for trend, count in trend_types.items():
+                print(f"   {trend.replace('_', ' ').title()}: {count} items")
+        
+        # Price analysis
+        items_with_price = [item for item in items if item.get('price')]
         if items_with_price:
             prices = [item['price'] for item in items_with_price]
-            avg_price = sum(prices) / len(prices)
-            min_price = min(prices)
-            max_price = max(prices)
-            
-            print(f"💰 Price Analysis:")
-            print(f"   Average: ${avg_price:.2f}")
-            print(f"   Range: ${min_price:.2f} - ${max_price:.2f}")
-            print(f"   Items with price: {len(items_with_price)}/{total_items}")
+            print(f"\n💰 Price Analysis:")
+            print(f"   Average: ${sum(prices)/len(prices):.2f}")
+            print(f"   Range: ${min(prices):.2f} - ${max(prices):.2f}")
         
-        # Condition analysis
-        conditions = {}
-        for item in items:
-            condition = item.get('condition', 'N/A')
-            conditions[condition] = conditions.get(condition, 0) + 1
-        
-        if len(conditions) > 1:
-            print(f"\n🏷️  Condition Breakdown:")
-            for condition, count in sorted(conditions.items(), key=lambda x: x[1], reverse=True):
-                percentage = (count/total_items)*100
-                print(f"   {condition}: {count} ({percentage:.1f}%)")
-        
-        # Hot items
-        hot_items = [item for item in items if item.get('watchers', 0) > 5 or item.get('sold_count', 0) > 10]
-        if hot_items:
-            print(f"\n🔥 Hot Items ({len(hot_items)} found):")
-            for item in hot_items[:3]:
-                watchers = item.get('watchers', 0)
-                sold = item.get('sold_count', 0)
-                print(f"   • {item['title'][:50]}...")
-                print(f"     Price: {item['price_text']} | Watchers: {watchers} | Sold: {sold}")
-        
-        # Sample results
-        print(f"\n📦 Sample Results:")
-        for i, item in enumerate(items[:3]):
-            print(f"\n{i+1}. {item['title'][:60]}...")
-            print(f"   💰 {item['price_text']} | 🚚 {item['shipping']}")
-            print(f"   📍 {item['location']} | ✨ {item['condition']}")
-            if item.get('watchers', 0) > 0:
-                print(f"   👀 {item['watchers']} watchers")
-            if item.get('sold_count', 0) > 0:
-                print(f"   📦 {item['sold_count']} sold")
+        # Top trending items
+        top_items = sorted(items, key=lambda x: x.get('trending_score', 0), reverse=True)[:5]
+        print(f"\n⭐ Top 5 Trending Items:")
+        for i, item in enumerate(top_items):
+            print(f"{i+1}. {item['title'][:50]}...")
+            print(f"   💰 {item['price_text']} | 👀 {item.get('watchers', 0)} | 📦 {item.get('sold_count', 0)}")
+            print(f"   🏆 Trending Score: {item.get('trending_score', 0)}")
 
-# Example usage with enhanced features
+# Example usage
 if __name__ == "__main__":
-    # Initialize enhanced scraper
     scraper = EbayScraper()
     
-    print("🎯 Testing Enhanced eBay Scraper...")
+    print("🚀 eBay Trending Items Scraper")
+    print("Choose an option:")
+    print("1. Scrape ALL trending items (most comprehensive)")
+    print("2. Scrape specific trending type")
+    print("3. Search for specific products")
     
-    # Example: Search for trending items
-    items = scraper.search_and_scrape(
-        keyword="iPhone 15 Pro Max",
-        condition="New",
-        sort_order="MostWatched",
-        max_pages=2,
-        price_min=800,
-        price_max=1500
+    # For demo, let's scrape most watched items
+    trending_items = scraper.scrape_trending_items(
+        trend_type='most_watched',
+        category='Electronics',
+        max_pages=3
     )
     
-    if items:
-        # Save with timestamp
-        from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"data/iphone_15_pro_max_{timestamp}.csv"
-        scraper.save_to_csv(items, filename)
+    if trending_items:
+        scraper.get_trending_summary(trending_items)
         
-        print(f"\n🎉 Scraping completed! Check '{filename}' for full results.")
-    else:
-        print("❌ No results found. Try a different search term.")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"data/trending_items_{timestamp}.csv"
+        scraper.save_to_csv(trending_items, filename)
